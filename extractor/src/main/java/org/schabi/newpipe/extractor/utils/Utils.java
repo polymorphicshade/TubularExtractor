@@ -8,6 +8,8 @@ import java.net.URL;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
@@ -416,5 +418,23 @@ public final class Utils {
         }
 
         throw new Parser.RegexException("No regex matched the input on group " + group);
+    }
+
+    public static String toSha256(final String videoId) throws NoSuchAlgorithmException {
+        final MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        final byte[] bytes = digest.digest(videoId.getBytes(StandardCharsets.UTF_8));
+        final StringBuilder sb = new StringBuilder();
+
+        for (final byte b : bytes) {
+            final String hex = Integer.toHexString(0xff & b);
+
+            if (hex.length() == 1) {
+                sb.append('0');
+            }
+
+            sb.append(hex);
+        }
+
+        return sb.toString();
     }
 }

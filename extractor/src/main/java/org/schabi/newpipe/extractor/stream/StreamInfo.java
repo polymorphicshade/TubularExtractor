@@ -30,13 +30,19 @@ import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
 import org.schabi.newpipe.extractor.exceptions.ContentNotSupportedException;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
+import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockApiSettings;
+import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockExtractorHelper;
+import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockSegment;
 import org.schabi.newpipe.extractor.utils.ExtractorHelper;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
 
@@ -63,16 +69,24 @@ public class StreamInfo extends Info {
         this.ageLimit = ageLimit;
     }
 
-    public static StreamInfo getInfo(final String url) throws IOException, ExtractionException {
-        return getInfo(NewPipe.getServiceByUrl(url), url);
+    public static StreamInfo getInfo(
+            final String url,
+            @Nullable final SponsorBlockApiSettings sponsorBlockApiSettings)
+            throws IOException, ExtractionException {
+        return getInfo(NewPipe.getServiceByUrl(url), url, sponsorBlockApiSettings);
     }
 
-    public static StreamInfo getInfo(@Nonnull final StreamingService service,
-                                     final String url) throws IOException, ExtractionException {
-        return getInfo(service.getStreamExtractor(url));
+    public static StreamInfo getInfo(
+            @Nonnull final StreamingService service,
+            final String url,
+            @Nullable final SponsorBlockApiSettings sponsorBlockApiSettings)
+            throws IOException, ExtractionException {
+        return getInfo(service.getStreamExtractor(url), sponsorBlockApiSettings);
     }
 
-    public static StreamInfo getInfo(@Nonnull final StreamExtractor extractor)
+    public static StreamInfo getInfo(
+            @Nonnull final StreamExtractor extractor,
+            @Nullable final SponsorBlockApiSettings sponsorBlockApiSettings)
             throws ExtractionException, IOException {
         extractor.fetchPage();
         final StreamInfo streamInfo;
@@ -80,6 +94,13 @@ public class StreamInfo extends Info {
             streamInfo = extractImportantData(extractor);
             extractStreams(streamInfo, extractor);
             extractOptionalData(streamInfo, extractor);
+
+            if (sponsorBlockApiSettings != null) {
+                final SponsorBlockSegment[] sponsorBlockSegments =
+                        SponsorBlockExtractorHelper.getSegments(streamInfo, sponsorBlockApiSettings);
+                streamInfo.setSponsorBlockSegments(sponsorBlockSegments);
+            }
+
             return streamInfo;
 
         } catch (final ExtractionException e) {
@@ -381,6 +402,7 @@ public class StreamInfo extends Info {
     private List<StreamSegment> streamSegments = List.of();
     private List<MetaInfo> metaInfo = List.of();
     private boolean shortFormContent = false;
+    private List<SponsorBlockSegment> sponsorBlockSegments = new ArrayList<>();
 
     /**
      * Preview frames, e.g. for the storyboard / seekbar thumbnail preview
@@ -726,5 +748,36 @@ public class StreamInfo extends Info {
 
     public void setShortFormContent(final boolean isShortFormContent) {
         this.shortFormContent = isShortFormContent;
+    }
+
+    public SponsorBlockSegment[] getSponsorBlockSegments() {
+        return sponsorBlockSegments.toArray(new SponsorBlockSegment[0]);
+    }
+
+    public void setSponsorBlockSegments(final SponsorBlockSegment[] sponsorBlockSegments) {
+        this.sponsorBlockSegments.clear();
+        Collections.addAll(this.sponsorBlockSegments, sponsorBlockSegments);
+    }
+
+    public void addSponsorBlockSegment(final SponsorBlockSegment sponsorBlockSegment) {
+        sponsorBlockSegments.add(sponsorBlockSegment);
+    }
+
+    public void removeSponsorBlockSegment(final SponsorBlockSegment sponsorBlockSegment) {
+        sponsorBlockSegments.remove(sponsorBlockSegment);
+    }
+
+    public void removeSponsorBlockSegment(final String uuid) {
+        SponsorBlockSegment target = null;
+        for (final SponsorBlockSegment segment : sponsorBlockSegments) {
+            if (segment.uuid.equals(uuid)) {
+                target = segment;
+                break;
+            }
+        }
+
+        if (target != null) {
+            removeSponsorBlockSegment(target);
+        }
     }
 }
