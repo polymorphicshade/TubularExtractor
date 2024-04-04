@@ -67,6 +67,7 @@ import org.schabi.newpipe.extractor.localization.TimeAgoParser;
 import org.schabi.newpipe.extractor.localization.TimeAgoPatternsManager;
 import org.schabi.newpipe.extractor.services.youtube.ItagItem;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeJavaScriptPlayerManager;
+import org.schabi.newpipe.extractor.services.youtube.YoutubeMetaInfoHelper;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper;
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.stream.AudioStream;
@@ -189,7 +190,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
                 try { // Premiered 20 hours ago
                     final TimeAgoParser timeAgoParser = TimeAgoPatternsManager.getTimeAgoParserFor(
-                            Localization.fromLocalizationCode("en"));
+                            new Localization("en"));
                     final OffsetDateTime parsedTime = timeAgoParser.parse(time).offsetDateTime();
                     return DateTimeFormatter.ISO_LOCAL_DATE.format(parsedTime);
                 } catch (final Exception ignored) {
@@ -1377,8 +1378,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 final int audioTrackIdLastLocaleCharacter = audioTrackId.indexOf(".");
                 if (audioTrackIdLastLocaleCharacter != -1) {
                     // Audio tracks IDs are in the form LANGUAGE_CODE.TRACK_NUMBER
-                    itagItem.setAudioLocale(LocaleCompat.forLanguageTag(
-                            audioTrackId.substring(0, audioTrackIdLastLocaleCharacter)));
+                    LocaleCompat.forLanguageTag(
+                            audioTrackId.substring(0, audioTrackIdLastLocaleCharacter)
+                    ).ifPresent(itagItem::setAudioLocale);
                 }
                 itagItem.setAudioTrackType(YoutubeParsingHelper.extractAudioTrackType(streamUrl));
             }
@@ -1592,7 +1594,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public List<MetaInfo> getMetaInfo() throws ParsingException {
-        return YoutubeParsingHelper.getMetaInfo(nextResponse
+        return YoutubeMetaInfoHelper.getMetaInfo(nextResponse
                 .getObject("contents")
                 .getObject("twoColumnWatchNextResults")
                 .getObject("results")

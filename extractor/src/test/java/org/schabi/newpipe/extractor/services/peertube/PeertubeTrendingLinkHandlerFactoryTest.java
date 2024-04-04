@@ -11,6 +11,7 @@ import org.schabi.newpipe.extractor.services.peertube.linkHandler.PeertubeTrendi
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.schabi.newpipe.extractor.ServiceList.PeerTube;
+import static org.schabi.newpipe.extractor.services.peertube.PeertubeLinkHandlerFactoryTestHelper.assertDoNotAcceptNonURLs;
 
 /**
  * Test for {@link PeertubeTrendingLinkHandlerFactory}
@@ -32,7 +33,7 @@ public class PeertubeTrendingLinkHandlerFactoryTest {
         assertEquals(LinkHandlerFactory.fromId("Trending").getUrl(), "https://peertube.mastodon.host/api/v1/videos?sort=-trending");
         assertEquals(LinkHandlerFactory.fromId("Most liked").getUrl(), "https://peertube.mastodon.host/api/v1/videos?sort=-likes");
         assertEquals(LinkHandlerFactory.fromId("Recently added").getUrl(), "https://peertube.mastodon.host/api/v1/videos?sort=-publishedAt");
-        assertEquals(LinkHandlerFactory.fromId("Local").getUrl(), "https://peertube.mastodon.host/api/v1/videos?sort=-publishedAt&filter=local");
+        assertEquals(LinkHandlerFactory.fromId("Local").getUrl(), "https://peertube.mastodon.host/api/v1/videos?sort=-publishedAt&isLocal=true");
     }
 
     @Test
@@ -57,5 +58,7 @@ public class PeertubeTrendingLinkHandlerFactoryTest {
 
         assertTrue(LinkHandlerFactory.acceptUrl("https://peertube.mastodon.host/videos/local"));
         assertTrue(LinkHandlerFactory.acceptUrl("https://peertube.mastodon.host/videos/local?adsf=fjaj#fhe"));
+
+        PeertubeLinkHandlerFactoryTestHelper.assertDoNotAcceptNonURLs(LinkHandlerFactory);
     }
 }
