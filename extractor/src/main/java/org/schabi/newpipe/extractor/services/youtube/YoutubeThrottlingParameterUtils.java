@@ -1,5 +1,7 @@
 package org.schabi.newpipe.extractor.services.youtube;
 
+import static org.schabi.newpipe.extractor.utils.Parser.matchMultiplePatterns;
+
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.utils.JavaScript;
 import org.schabi.newpipe.extractor.utils.Parser;
@@ -11,50 +13,75 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Utility class to get the throttling parameter decryption code and check if a streaming has the
+ * Utility class to get the throttling parameter decryption code and check if a
+ * streaming has the
  * throttling parameter.
  */
 final class YoutubeThrottlingParameterUtils {
 
     private static final Pattern THROTTLING_PARAM_PATTERN = Pattern.compile("[&?]n=([^&]+)");
 
-    private static final Pattern DEOBFUSCATION_FUNCTION_NAME_PATTERN = Pattern.compile(
-            // CHECKSTYLE:OFF
-            "\\.get\\(\"n\"\\)\\)&&\\([a-zA-Z0-9$_]=([a-zA-Z0-9$_]+)(?:\\[(\\d+)])?\\([a-zA-Z0-9$_]\\)");
-            // CHECKSTYLE:ON
+    private static final String SINGLE_CHAR_VARIABLE_REGEX = "[a-zA-Z0-9$_]";
+
+    private static final String FUNCTION_NAME_REGEX = SINGLE_CHAR_VARIABLE_REGEX + "+";
+
+    private static final String ARRAY_ACCESS_REGEX = "\\[(\\d+)]";
+
+    /**
+     * The first regex matches this, where we want BDa:
+     * <p>
+     * (b=String.fromCharCode(110),c=a.get(b))&&(c=<strong>BDa</strong><strong>[0]</strong>(c)
+     * <p>
+     * Array access is optional, but needs to be handled, since the actual function
+     * is inside the
+     * array.
+     */
+    // CHECKSTYLE:OFF
+    private static final Pattern[] DEOBFUSCATION_FUNCTION_NAME_REGEXES = {
+            Pattern.compile("\\(" + SINGLE_CHAR_VARIABLE_REGEX + "=String\\.fromCharCode\\(110\\),"
+                    + SINGLE_CHAR_VARIABLE_REGEX + "=" + SINGLE_CHAR_VARIABLE_REGEX + "\\.get\\("
+                    + SINGLE_CHAR_VARIABLE_REGEX + "\\)\\)" + "&&\\(" + SINGLE_CHAR_VARIABLE_REGEX
+                    + "=(" + FUNCTION_NAME_REGEX + ")" + "(?:" + ARRAY_ACCESS_REGEX + ")?\\("
+                    + SINGLE_CHAR_VARIABLE_REGEX + "\\)"),
+            Pattern.compile("\\.get\\(\"n\"\\)\\)&&\\(" + SINGLE_CHAR_VARIABLE_REGEX
+                    + "=(" + FUNCTION_NAME_REGEX + ")(?:" + ARRAY_ACCESS_REGEX + ")?\\("
+                    + SINGLE_CHAR_VARIABLE_REGEX + "\\)"),
+    };
+    // CHECKSTYLE:ON
 
     // Escape the curly end brace to allow compatibility with Android's regex engine
     // See https://stackoverflow.com/q/45074813
     @SuppressWarnings("RegExpRedundantEscape")
-    private static final String DEOBFUSCATION_FUNCTION_BODY_REGEX =
-            "=\\s*function([\\S\\s]*?\\}\\s*return [\\w$]+?\\.join\\(\"\"\\)\\s*\\};)";
+    private static final String DEOBFUSCATION_FUNCTION_BODY_REGEX = "=\\s*function([\\S\\s]*?\\}\\s*return [\\w$]+?\\.join\\(\"\"\\)\\s*\\};)";
 
     private static final String DEOBFUSCATION_FUNCTION_ARRAY_OBJECT_TYPE_DECLARATION_REGEX = "var ";
 
-    private static final String FUNCTION_NAMES_IN_DEOBFUSCATION_ARRAY_REGEX =
-            "\\s*=\\s*\\[(.+?)][;,]";
+    private static final String FUNCTION_NAMES_IN_DEOBFUSCATION_ARRAY_REGEX = "\\s*=\\s*\\[(.+?)][;,]";
 
     private YoutubeThrottlingParameterUtils() {
     }
 
     /**
-     * Get the throttling parameter deobfuscation function name of YouTube's base JavaScript file.
+     * Get the throttling parameter deobfuscation function name of YouTube's base
+     * JavaScript file.
      *
      * @param javaScriptPlayerCode the complete JavaScript base player code
      * @return the name of the throttling parameter deobfuscation function
-     * @throws ParsingException if the name of the throttling parameter deobfuscation function
-     * could not be extracted
+     * @throws ParsingException if the name of the throttling parameter
+     *                          deobfuscation function
+     *                          could not be extracted
      */
     @Nonnull
     static String getDeobfuscationFunctionName(@Nonnull final String javaScriptPlayerCode)
             throws ParsingException {
-        final Matcher matcher = DEOBFUSCATION_FUNCTION_NAME_PATTERN.matcher(javaScriptPlayerCode);
-        if (!matcher.find()) {
-            throw new ParsingException("Failed to find deobfuscation function name pattern \""
-                    + DEOBFUSCATION_FUNCTION_NAME_PATTERN
-                    + "\" in the base JavaScript player code");
+        final Matcher matcher;
+        try {
+            matcher = matchMultiplePatterns(DEOBFUSCATION_FUNCTION_NAME_REGEXES,
+                    javaScriptPlayerCode);
+        } catch (final Parser.RegexException e) {
+            throw new ParsingException("Could not find deobfuscation function with any of the "
+                    + "known patterns in the base JavaScript player code", e);
         }
-
         final String functionName = matcher.group(1);
         if (matcher.groupCount() == 1) {
             return functionName;
@@ -71,16 +98,18 @@ final class YoutubeThrottlingParameterUtils {
     }
 
     /**
-     * Get the throttling parameter deobfuscation code of YouTube's base JavaScript file.
+     * Get the throttling parameter deobfuscation code of YouTube's base JavaScript
+     * file.
      *
      * @param javaScriptPlayerCode the complete JavaScript base player code
      * @return the throttling parameter deobfuscation function name
-     * @throws ParsingException if the throttling parameter deobfuscation code couldn't be
-     * extracted
+     * @throws ParsingException if the throttling parameter deobfuscation code
+     *                          couldn't be
+     *                          extracted
      */
     @Nonnull
     static String getDeobfuscationFunction(@Nonnull final String javaScriptPlayerCode,
-                                           @Nonnull final String functionName)
+            @Nonnull final String functionName)
             throws ParsingException {
         try {
             return parseFunctionWithLexer(javaScriptPlayerCode, functionName);
@@ -93,15 +122,17 @@ final class YoutubeThrottlingParameterUtils {
      * Get the throttling parameter of a streaming URL if it exists.
      *
      * @param streamingUrl a streaming URL
-     * @return the throttling parameter of the streaming URL or {@code null} if no parameter has
-     * been found
+     * @return the throttling parameter of the streaming URL or {@code null} if no
+     *         parameter has
+     *         been found
      */
     @Nullable
     static String getThrottlingParameterFromStreamingUrl(@Nonnull final String streamingUrl) {
         try {
             return Parser.matchGroup1(THROTTLING_PARAM_PATTERN, streamingUrl);
         } catch (final Parser.RegexException e) {
-            // If the throttling parameter could not be parsed from the URL, it means that there is
+            // If the throttling parameter could not be parsed from the URL, it means that
+            // there is
             // no throttling parameter
             // Return null in this case
             return null;
@@ -110,7 +141,7 @@ final class YoutubeThrottlingParameterUtils {
 
     @Nonnull
     private static String parseFunctionWithLexer(@Nonnull final String javaScriptPlayerCode,
-                                                 @Nonnull final String functionName)
+            @Nonnull final String functionName)
             throws ParsingException {
         final String functionBase = functionName + "=function";
         return functionBase + JavaScriptExtractor.matchToClosingBrace(
@@ -119,9 +150,10 @@ final class YoutubeThrottlingParameterUtils {
 
     @Nonnull
     private static String parseFunctionWithRegex(@Nonnull final String javaScriptPlayerCode,
-                                                 @Nonnull final String functionName)
+            @Nonnull final String functionName)
             throws Parser.RegexException {
-        // Quote the function name, as it may contain special regex characters such as dollar
+        // Quote the function name, as it may contain special regex characters such as
+        // dollar
         final Pattern functionPattern = Pattern.compile(
                 Pattern.quote(functionName) + DEOBFUSCATION_FUNCTION_BODY_REGEX,
                 Pattern.DOTALL);
