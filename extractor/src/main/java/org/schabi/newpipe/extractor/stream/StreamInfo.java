@@ -770,6 +770,31 @@ public class StreamInfo extends Info {
 
     public void setSponsorBlockSegments(final SponsorBlockSegment[] sponsorBlockSegments) {
         this.sponsorBlockSegments.clear();
+        for (SponsorBlockSegment segment : sponsorBlockSegments) {
+            segment.chain.clear();
+        }
+
+        // assume all segments are in chronological order
+        int i = 0;
+        while (i < sponsorBlockSegments.length) {
+            // look at all after and see if there are chains
+            List<SponsorBlockSegment> chain = new ArrayList<>();
+            chain.add(sponsorBlockSegments[i]);
+
+            for (int j = i + 1; j < sponsorBlockSegments.length; j++) {
+                if (sponsorBlockSegments[j].startTime < chain.get(chain.size() - 1).endTime + 1000) {
+                    // if start of this segment is within 1000 ms of the end of prev segment
+                    chain.add(sponsorBlockSegments[j]);
+                } else {
+                    for (SponsorBlockSegment segment : chain) {
+                        segment.chain.addAll(chain);
+                    }
+                    break;
+                }
+            }
+            i += chain.size();
+        }
+
         Collections.addAll(this.sponsorBlockSegments, sponsorBlockSegments);
     }
 
