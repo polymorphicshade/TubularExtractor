@@ -87,12 +87,12 @@ public class StreamInfo extends Info {
             + ']';
     }
 
-<<<<<<< HEAD
     public static StreamInfo getInfo(
             final String url,
             @Nullable final SponsorBlockApiSettings sponsorBlockApiSettings,
             @Nullable final ReturnYouTubeDislikeApiSettings returnYouTubeDislikeApiSettings)
             throws IOException, ExtractionException {
+        ExtractorLogger.d(TAG, "getInfo({url})", url);
         return getInfo(NewPipe.getServiceByUrl(url), url, sponsorBlockApiSettings, returnYouTubeDislikeApiSettings);
     }
 
@@ -102,18 +102,8 @@ public class StreamInfo extends Info {
             @Nullable final SponsorBlockApiSettings sponsorBlockApiSettings,
             @Nullable final ReturnYouTubeDislikeApiSettings returnYouTubeDislikeApiSettings)
             throws IOException, ExtractionException {
-        return getInfo(service.getStreamExtractor(url), sponsorBlockApiSettings, returnYouTubeDislikeApiSettings);
-=======
-    public static StreamInfo getInfo(final String url) throws IOException, ExtractionException {
-        ExtractorLogger.d(TAG, "getInfo({url})", url);
-        return getInfo(NewPipe.getServiceByUrl(url), url);
-    }
-
-    public static StreamInfo getInfo(@Nonnull final StreamingService service,
-                                     final String url) throws IOException, ExtractionException {
         ExtractorLogger.d(TAG, "getInfo({service},{url})", service, url);
-        return getInfo(service.getStreamExtractor(url));
->>>>>>> upstream/master
+        return getInfo(service.getStreamExtractor(url), sponsorBlockApiSettings, returnYouTubeDislikeApiSettings);
     }
 
     public static StreamInfo getInfo(
