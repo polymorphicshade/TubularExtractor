@@ -10,6 +10,10 @@ pluginManagement {
         mavenCentral()
     }
 }
+plugins {
+    // Gradle auto-download a matching JDK toolchain (target build Java 11)
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {

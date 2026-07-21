@@ -37,6 +37,7 @@ import org.schabi.newpipe.extractor.returnyoutubedislike.ReturnYouTubeDislikeApi
 import org.schabi.newpipe.extractor.returnyoutubedislike.ReturnYouTubeDislikeExtractorHelper;
 import org.schabi.newpipe.extractor.returnyoutubedislike.ReturnYouTubeDislikeInfo;
 import org.schabi.newpipe.extractor.utils.ExtractorHelper;
+import org.schabi.newpipe.extractor.utils.ExtractorLogger;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -53,7 +54,7 @@ import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
  * Info object for opened contents, i.e. the content ready to play.
  */
 public class StreamInfo extends Info {
-
+    private static final String TAG = StreamInfo.class.getSimpleName();
     public static class StreamExtractException extends ExtractionException {
         StreamExtractException(final String message) {
             super(message);
@@ -70,6 +71,20 @@ public class StreamInfo extends Info {
         super(serviceId, id, url, originalUrl, name);
         this.streamType = streamType;
         this.ageLimit = ageLimit;
+        ExtractorLogger.d(TAG, "Created {}", this);
+    }
+
+    @Override
+    public String toString() {
+        return TAG + "["
+            + "serviceId=" + getServiceId()
+            + ", url='" + getUrl() + '\''
+            + ", originalUrl='" + getOriginalUrl() + '\''
+            + ", id='" + getId() + '\''
+            + ", name='" + getName() + '\''
+            + ", streamType=" + streamType
+            + ", ageLimit=" + ageLimit
+            + ']';
     }
 
     public static StreamInfo getInfo(
@@ -94,6 +109,7 @@ public class StreamInfo extends Info {
             @Nullable final SponsorBlockApiSettings sponsorBlockApiSettings,
             @Nullable final ReturnYouTubeDislikeApiSettings returnYouTubeDislikeApiSettings)
             throws ExtractionException, IOException {
+        ExtractorLogger.d(TAG, "getInfo({extractor})", extractor);
         extractor.fetchPage();
         final StreamInfo streamInfo;
         try {
@@ -201,7 +217,10 @@ public class StreamInfo extends Info {
 
         // Either audio or video has to be available, otherwise we didn't get a stream (since
         // videoOnly are optional, they don't count).
-        if ((streamInfo.videoStreams.isEmpty()) && (streamInfo.audioStreams.isEmpty())) {
+        // Allow DASH and HLS manifests to be only available, as they can be the only source
+        // available for livestreams
+        if (streamInfo.videoStreams.isEmpty() && streamInfo.audioStreams.isEmpty()
+                && isNullOrEmpty(streamInfo.dashMpdUrl) && isNullOrEmpty(streamInfo.hlsUrl)) {
             throw new StreamExtractException(
                     "Could not get any stream. See error variable to get further details.");
         }
